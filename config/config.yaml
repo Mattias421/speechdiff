@@ -1,4 +1,14 @@
-name: 'my_first_experiment'
+hydra:
+  job:
+    name : 'my_first_experiment'
+    chdir: true
+    config:
+      override_dirname:
+        exclude_keys:
+          - data
+  run:
+    dir: ../hydra_outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
+
 data:
 
 model:
@@ -21,12 +31,12 @@ model:
     pe_scale: 1000
 
 training:
-  log_dir: ../logs/${name}
+  log_dir: logs
   test_size: 1
   n_epochs: 500
   batch_size: 16
   learning_rate: 1e-4
-  seed: 37
+  seed: 612
   save_every: 1
   gpu: 0
   num_workers: 30

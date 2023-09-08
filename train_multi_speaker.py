@@ -15,6 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
+import os
 
 from model import GradTTS
 from data import TextMelSpeakerDataset, TextMelSpeakerBatchCollate
@@ -30,7 +31,7 @@ def main(cfg: DictConfig):
 
     print('Initializing logger...')
     log_dir = cfg.training.log_dir
-    logger = SummaryWriter(log_dir=cfg.training.log_dir)
+    logger = SummaryWriter(log_dir=log_dir)
 
     print('Initializing data loaders...')
     train_dataset = TextMelSpeakerDataset('train', cfg)
