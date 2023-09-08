@@ -1,0 +1,13 @@
+train_filelist_path: 'resources/filelists/tedlium_speaker/train.txt'
+dev_filelist_path: 'resources/filelists/tedlium_speaker/dev.txt'
+test_filelist_path: 'resources/filelists/tedlium_speaker/test.txt'
+cmudict_path: 'resources/cmu_dictionary'
+add_blank: true
+n_spks: 675
+n_feats: 80
+n_fft: 1024
+sample_rate: 16000
+hop_length: 256
+win_length: 1024
+f_min: 0
+f_max: 8000

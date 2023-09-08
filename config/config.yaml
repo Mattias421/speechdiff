@@ -1,0 +1,32 @@
+name: 'my_first_experiment'
+data:
+
+model:
+  spk_emb_dim: 128
+
+  encoder:
+    n_channels: 192
+    filter_channels: 768
+    filter_channels_dp: 256
+    n_layers: 6
+    kernel_size: 3
+    p_dropout: 0.1
+    n_heads: 2
+    window_size: 4
+
+  decoder:
+    dim: 64
+    beta_min: 0.05
+    beta_max: 20.0
+    pe_scale: 1000
+
+training:
+  log_dir: ../logs/${name}
+  test_size: 1
+  n_epochs: 500
+  batch_size: 16
+  learning_rate: 1e-4
+  seed: 37
+  save_every: 1
+  gpu: 0
+  num_workers: 30
