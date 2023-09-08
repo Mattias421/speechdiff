@@ -1,4 +1,4 @@
-# Speech diff, a framework for diffusion applied to speech
+# Speechdiff, a framework for diffusion applied to speech
 
 The goal of this repository is to make it easy to experiment with audiodatasets and diffusion. This is powered by [hydra](https://hydra.cc/docs/intro/https://hydra.cc/), scorebased generative models (Song et al.) and Grad-TTS (Popov et al.).
 
