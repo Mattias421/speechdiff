@@ -18,7 +18,7 @@ cd model/monotonic_align; python setup.py build_ext --inplace; cd ../..
 
 ## Train a Grad-TTS model
 
-Create a filelist in the form `audio_path|transcription|speaker_id`. Edit `config/data/data_example.yaml` to suit your dataset.
+Create a filelist in the form `f'{audio_path}|{transcription}|{speaker_id}'` where `speaker_id` is an integer. Edit `config/data/data_example.yaml` to suit your dataset.
 
 Run
 ```
