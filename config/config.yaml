@@ -1,13 +1,18 @@
 hydra:
   job:
-    name : 'my_first_experiment'
+    name : 'speechdiff'
     chdir: true
     config:
       override_dirname:
+        kv_sep: ':'
+        item_sep: '__'
         exclude_keys:
           - data
   run:
     dir: ../hydra_outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: ${hydra.run.dir}/${hydra.job.override_dirname}
+    subdir: ${hydra.sweep.dir}
 
 data:
 
@@ -31,7 +36,8 @@ model:
     pe_scale: 1000
 
 training:
-  log_dir: logs
+  tensorboard_dir: tb
+  checkpoint_dir: checkpoints
   test_size: 1
   n_epochs: 500
   batch_size: 16

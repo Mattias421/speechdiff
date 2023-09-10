@@ -30,7 +30,7 @@ def main(cfg: DictConfig):
     device = torch.device(f'cuda:{cfg.training.gpu}')
 
     print('Initializing logger...')
-    log_dir = cfg.training.log_dir
+    log_dir = cfg.training.tensorboard_dir
     logger = SummaryWriter(log_dir=log_dir)
 
     print('Initializing data loaders...')
@@ -141,7 +141,7 @@ def main(cfg: DictConfig):
             continue
         
         ckpt = model.state_dict()
-        torch.save(ckpt, f=f"{log_dir}/chkpts/grad_{epoch}.pt")
+        torch.save(ckpt, f=f"{cfg.training.checkpoint_dir}/grad_{epoch}.pt")
 
 if __name__ == '__main__':
     main()

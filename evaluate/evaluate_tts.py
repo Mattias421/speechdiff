@@ -1,3 +1,6 @@
+"""
+Thank you Alfredo!
+"""
 import numpy as np
 from tqdm import tqdm
 import json
@@ -11,6 +14,7 @@ from model import GradTTS
 from data import TextMelSpeakerDataset, TextMelSpeakerBatchCollate
 from utils import plot_tensor, save_plot
 from text.symbols import symbols
+from utils import parse_filelist
 
 import sys
 sys.path.append('./hifi-gan/')
@@ -23,42 +27,11 @@ import soundfile as sf
 from fastdtw import fastdtw
 from scipy import spatial
 
-test_filelist_path = params.test_filelist_path
-valid_filelist_path = params.valid_filelist_path
-cmudict_path = params.cmudict_path
-add_blank = params.add_blank
-n_spks = params.n_spks
-spk_emb_dim = params.spk_emb_dim
+import hydra
+from omegaconf import DictConfig, OmegaConf
+import logging
 
-log_dir = params.log_dir
-n_epochs = params.n_epochs
-batch_size = params.batch_size
-out_size = params.out_size
-learning_rate = params.learning_rate
-random_seed = params.seed
-
-nsymbols = len(symbols) + 1 if add_blank else len(symbols)
-n_enc_channels = params.n_enc_channels
-filter_channels = params.filter_channels
-filter_channels_dp = params.filter_channels_dp
-n_enc_layers = params.n_enc_layers
-enc_kernel = params.enc_kernel
-enc_dropout = params.enc_dropout
-n_heads = params.n_heads
-window_size = params.window_size
-
-n_feats = params.n_feats
-n_fft = params.n_fft
-sample_rate = params.sample_rate
-hop_length = params.hop_length
-win_length = params.win_length
-f_min = params.f_min
-f_max = params.f_max
-
-dec_dim = params.dec_dim
-beta_min = params.beta_min
-beta_max = params.beta_max
-pe_scale = params.pe_scale
+log = logging.getLogger()
 
 def fastdtw_distance_on_mels(ref_mel, pred_mel):
     ref_mel = np.asarray(ref_mel)
@@ -70,18 +43,6 @@ def fastdtw_distance_on_mels(ref_mel, pred_mel):
     dtw_distance = np.sum((h_dtw-r_dtw)**2,1)
     mel_dtw = np.mean(10.0 / np.log(10.0) * np.sqrt(2 * dtw_distance), 0)
     return mel_dtw
-
-def _same_t_in_true_and_est(func):
-    def new_func(true_t, true_f, est_t, est_f):
-        assert type(true_t) is np.ndarray
-        assert type(true_f) is np.ndarray
-        assert type(est_t) is np.ndarray
-        assert type(est_f) is np.ndarray
-
-        interpolated_f = interp1d(est_t, est_f, bounds_error=False, kind='nearest', fill_value=0)(true_t)
-        return func(true_t, true_f, true_t, interpolated_f)
-
-    return new_func
 
 ###@_same_t_in_true_and_est
 def gross_pitch_error(true_f, est_f):
@@ -156,101 +117,78 @@ def world_extract(x: np.ndarray, fs: int, f0min: int = 40, f0max: int = 800, n_f
     return mcep, f0
 
 
-def obtainMetrics(pred_x,refFile, pred_mel, ref_mel):
-    # pred_x, pred_fs = sf.read(predFile,dtype="float32")  ##int16")
+def obtainMetrics(predFile, refFile):
+    pred_x, pred_fs = sf.read(predFile,dtype="float32")  ##int16")
     ref_x, ref_fs = sf.read(refFile,dtype="float32")    ##int16")
-    fs = ref_fs
+    fs = pred_fs
     pred_mcep, pred_f0 = world_extract(x=pred_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
     ref_mcep, ref_f0 = world_extract(x=ref_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
+
     # DTW
     _, path = fastdtw(pred_mcep, ref_mcep, dist=spatial.distance.euclidean)
     twf = np.array(path).T
     pred_f0_dtw = pred_f0[twf[0]]
     ref_f0_dtw = ref_f0[twf[1]]
+
     ##Get voiced part
     nonzero_idxs = np.where((pred_f0_dtw!=0)&(ref_f0_dtw!=0))[0]
     pred_f0_dtw_voiced = np.log(pred_f0_dtw[nonzero_idxs])
     ref_f0_dtw_voiced = np.log(ref_f0_dtw[nonzero_idxs])
+
     ##log F0 RMSE
     log_f0_rmse = np.sqrt(np.mean((pred_f0_dtw_voiced-ref_f0_dtw_voiced)**2))
     gen_mcep = sptk_extract(x=pred_x, fs=fs, n_fft=512,n_shift=256,mcep_dim=34,mcep_alpha=0.45)
     gt_mcep = sptk_extract(x=ref_x, fs=fs, n_fft=512,n_shift=256, mcep_dim=34,mcep_alpha=0.45)
+
     # DTW
     _, path = fastdtw(gen_mcep, gt_mcep, dist=spatial.distance.euclidean)
     twf = np.array(path).T
     gen_mcep_dtw = gen_mcep[twf[0]]
     gt_mcep_dtw = gt_mcep[twf[1]]
+
     ##MCD
     diff2sum =  np.sum((gen_mcep_dtw - gt_mcep_dtw) ** 2, 1)
     mcd = np.mean(10.0 / np.log(10.0) * np.sqrt(2 * diff2sum), 0)
+
     ###Compute DTW distance between mel-spectrograms
-    mel_dtw_distance = 0 # fastdtw_distance_on_mels(ref_mel.squeeze(0).cpu(), pred_mel.squeeze(0).cpu())
     gpe = gross_pitch_error(ref_f0_dtw, pred_f0_dtw)
     vde = voicing_decision_error(ref_f0_dtw, pred_f0_dtw)
     ffe = f0_frame_error(ref_f0_dtw, pred_f0_dtw)
 
-    # print("log_f0_rmse is ", log_f0_rmse, "MCD is ", mcd, "mel-dtw is ", mel_dtw_distance, "gpe is ", gpe, "vde is ", vde, "ffe is ", ffe)
+    return  log_f0_rmse, mcd, gpe, vde, ffe
 
-    return  log_f0_rmse, mcd, mel_dtw_distance, gpe, vde, ffe
+@hydra.main(config_path='../config')
+def main(cfg):
 
-def main(args):
-    device = torch.device(f'cuda:{args.gpu}')
+    split = cfg.eval.split
 
-    test_dataset = TextMelSpeakerDataset(test_filelist_path, cmudict_path, add_blank,
-                                          n_fft, n_feats, sample_rate, hop_length,
-                                          win_length, f_min, f_max)
-    batch_collate = TextMelSpeakerBatchCollate()
-    loader = DataLoader(dataset=test_dataset, batch_size=1,
-                        collate_fn=batch_collate, drop_last=True,
-                        num_workers=30, shuffle=True)
-    
-    generator = GradTTS(len(symbols)+1, params.n_spks, params.spk_emb_dim,
-                        params.n_enc_channels, params.filter_channels,
-                        params.filter_channels_dp, params.n_heads, params.n_enc_layers,
-                        params.enc_kernel, params.enc_dropout, params.window_size,
-                        params.n_feats, params.dec_dim, params.beta_min, params.beta_max, params.pe_scale)
-    generator.load_state_dict(torch.load(args.checkpoint, map_location=lambda loc, storage: loc))
-    _ = generator.to(device).eval()
+    if split == 'train':
+        ref_filelist_path = cfg.train_filelist_path
+        pred_filelist_path  = cfg.eval.train_filelist_path
+    elif split == 'dev':
+        ref_filelist_path= cfg.dev_filelist_path
+        pred_filelist_path = cfg.eval.train_filelist_path
+    elif split == 'test':
+        ref_filelist_path = cfg.test_filelist_path
+        pred_filelist_path= cfg.eval.train_filelist_path
 
-    HIFIGAN_CONFIG = './checkpts/hifigan-config.json'
-    HIFIGAN_CHECKPT = './checkpts/hifigan.pt'
-    with open(HIFIGAN_CONFIG) as f:
-        h = AttrDict(json.load(f))
-    vocoder = HiFiGAN(h)
-    vocoder.load_state_dict(torch.load(HIFIGAN_CHECKPT, map_location=lambda loc, storage: loc)['generator'])
-    _ = vocoder.to(device).eval()
-    vocoder.remove_weight_norm()
+    ref_files = parse_filelist(ref_filelist_path, split_char='|')
+
+    with open(pred_filelist_path, 'r') as file:
+        # Read the lines of the file into a list of strings
+        pred_files = file.readlines()
 
     n_evaluations = 50
+    files = zip(pred_files[:n_evaluations], ref_files[:n_evaluations])
 
-    results = np.zeros((n_evaluations, 6))
+    results = np.zeros((n_evaluations, 5))
 
-    with torch.no_grad():
-            for i in range(n_evaluations):
-                batch = test_dataset[i]
-                ref_file = test_dataset.filelist[i][0]
+    for i, (pred, ref) in enumerate(files):
+        results[i] = obtainMetrics(pred, ref)
 
-                x = batch['x'].to(device)[None]
-                x_lengths = torch.LongTensor([x.shape[-1]]).to(device)
-                spk = batch['spk'].to(device)
-                ref_mel = batch['y']
-
-                y_enc, y_dec, attn = generator(x, x_lengths, n_timesteps=50, spk=spk)
-                audio = (vocoder.forward(y_dec).cpu().squeeze().clamp(-1, 1).numpy() * 32768).astype(np.int16)
-
-                result = obtainMetrics(audio, ref_file, y_dec, ref_mel)
-                results[i] = result
-
-    print(np.mean(results, axis=0))
+    log.info('log_f0_rmse, mcd, gpe, vde, ffe')
+    log.info(np.mean(results, axis=0))
+    np.save('tts_metrics.npy', results)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    # parser.add_argument('-f', '--file', type=str, required=True, help='path to a file with texts to synthesize')
-    parser.add_argument('-c', '--checkpoint', type=str, required=True, help='path to a checkpoint of Grad-TTS')
-    # parser.add_argument('-t', '--timesteps', type=int, required=False, default=10, help='number of timesteps of reverse diffusion')
-    # parser.add_argument('-s', '--speaker_id', type=int, required=False, default=None, help='speaker id for multispeaker model')
-    # parser.add_argument('-o', '--output', type=str, required=True, help='output file')
-    parser.add_argument('-g', '--gpu', type=int, default=0, help='Choose which GPU to use')
-    args = parser.parse_args()
-
-    main(args)
+    main()
