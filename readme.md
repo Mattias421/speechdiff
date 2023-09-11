@@ -9,6 +9,10 @@ At the moment it's currently a revamp of [Grad-TTS](https://github.com/huawei-no
 Python 3.9.17
 
 ```
+pip install cython
+```
+
+```
 pip install -r requirements.txt
 ```
 
