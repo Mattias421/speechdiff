@@ -9,7 +9,7 @@ hydra:
         exclude_keys:
           - data
   run:
-    dir: ../hydra_outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
+    dir: ../hydra_outputs/${hydra.job.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
   sweep:
     dir: ${hydra.run.dir}/${hydra.job.override_dirname}
     subdir: ${hydra.sweep.dir}

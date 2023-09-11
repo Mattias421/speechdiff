@@ -9,7 +9,6 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-import params_tedlium_spk as params # changed
 from model import GradTTS
 from data import TextMelSpeakerDataset, TextMelSpeakerBatchCollate
 from utils import plot_tensor, save_plot
@@ -155,39 +154,63 @@ def obtainMetrics(predFile, refFile):
     vde = voicing_decision_error(ref_f0_dtw, pred_f0_dtw)
     ffe = f0_frame_error(ref_f0_dtw, pred_f0_dtw)
 
+    log.info(f'log_f0_rmse is  {log_f0_rmse} MCD is  {mcd} gpe is {gpe} vde is {vde} ffe is {ffe}')
+
     return  log_f0_rmse, mcd, gpe, vde, ffe
 
-@hydra.main(config_path='../config')
+def logf0(predFile, refFile):
+    pred_x, pred_fs = sf.read(predFile,dtype="float32")  ##int16")
+    ref_x, ref_fs = sf.read(refFile,dtype="float32")    ##int16")
+    fs = pred_fs
+    pred_mcep, pred_f0 = world_extract(x=pred_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
+    ref_mcep, ref_f0 = world_extract(x=ref_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
+
+    # DTW
+    _, path = fastdtw(pred_mcep, ref_mcep, dist=spatial.distance.euclidean)
+    twf = np.array(path).T
+    pred_f0_dtw = pred_f0[twf[0]]
+    ref_f0_dtw = ref_f0[twf[1]]
+
+    ##Get voiced part
+    nonzero_idxs = np.where((pred_f0_dtw!=0)&(ref_f0_dtw!=0))[0]
+    pred_f0_dtw_voiced = np.log(pred_f0_dtw[nonzero_idxs])
+    ref_f0_dtw_voiced = np.log(ref_f0_dtw[nonzero_idxs])
+
+    ##log F0 RMSE
+    log_f0_rmse = np.sqrt(np.mean((pred_f0_dtw_voiced-ref_f0_dtw_voiced)**2))
+
+    return log_f0_rmse
+
+@hydra.main(version_base=None, config_path='./config')
 def main(cfg):
 
     split = cfg.eval.split
 
     if split == 'train':
-        ref_filelist_path = cfg.train_filelist_path
-        pred_filelist_path  = cfg.eval.train_filelist_path
+        ref_filelist_path = cfg.data.train_filelist_path
     elif split == 'dev':
-        ref_filelist_path= cfg.dev_filelist_path
-        pred_filelist_path = cfg.eval.train_filelist_path
+        ref_filelist_path= cfg.data.dev_filelist_path
     elif split == 'test':
-        ref_filelist_path = cfg.test_filelist_path
-        pred_filelist_path= cfg.eval.train_filelist_path
+        ref_filelist_path = cfg.data.test_filelist_path
 
+    pred_filelist_path= cfg.eval.pred_filelist_path
     ref_files = parse_filelist(ref_filelist_path, split_char='|')
+    ref_files = [ref[0] for ref in ref_files]
 
     with open(pred_filelist_path, 'r') as file:
         # Read the lines of the file into a list of strings
         pred_files = file.readlines()
 
-    n_evaluations = 50
+    n_evaluations = cfg.eval.n_evaluations
     files = zip(pred_files[:n_evaluations], ref_files[:n_evaluations])
 
-    results = np.zeros((n_evaluations, 5))
+    results = np.zeros((n_evaluations))
 
     for i, (pred, ref) in enumerate(files):
-        results[i] = obtainMetrics(pred, ref)
+        results[i] = logf0(pred.rstrip('\n'), ref)
+        log.info(f'File {i} logf0 {results[i]}')
 
-    log.info('log_f0_rmse, mcd, gpe, vde, ffe')
-    log.info(np.mean(results, axis=0))
+    log.info(np.mean(results))
     np.save('tts_metrics.npy', results)
 
 if __name__ == '__main__':

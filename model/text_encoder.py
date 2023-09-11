@@ -298,7 +298,7 @@ class TextEncoder(BaseModule):
         self.kernel_size = cfg.kernel_size
         self.p_dropout = cfg.p_dropout
         self.window_size = cfg.window_size
-        
+
         self.emb = torch.nn.Embedding(self.n_vocab, cfg.n_channels)
         torch.nn.init.normal_(self.emb.weight, 0.0, cfg.n_channels**-0.5)
 

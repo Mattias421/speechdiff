@@ -16,6 +16,9 @@ from torch.utils.tensorboard import SummaryWriter
 from omegaconf import DictConfig, OmegaConf
 import hydra
 import os
+import logging
+
+log = logging.getLogger()
 
 from model import GradTTS
 from data import TextMelSpeakerDataset, TextMelSpeakerBatchCollate
@@ -29,11 +32,11 @@ def main(cfg: DictConfig):
     np.random.seed(cfg.training.seed)
     device = torch.device(f'cuda:{cfg.training.gpu}')
 
-    print('Initializing logger...')
+    log.info('Initializing logger...')
     log_dir = cfg.training.tensorboard_dir
     logger = SummaryWriter(log_dir=log_dir)
 
-    print('Initializing data loaders...')
+    log.info('Initializing data loaders...')
     train_dataset = TextMelSpeakerDataset('train', cfg)
     batch_collate = TextMelSpeakerBatchCollate()
     loader = DataLoader(dataset=train_dataset, batch_size=cfg.training.batch_size,
@@ -41,16 +44,16 @@ def main(cfg: DictConfig):
                         num_workers=cfg.training.num_workers, shuffle=True)
     test_dataset = TextMelSpeakerDataset('dev', cfg)
 
-    print('Initializing model...')
+    log.info('Initializing model...')
     model = GradTTS(cfg)
     model.to(device)
-    print('Number of encoder parameters = %.2fm' % (model.encoder.nparams/1e6))
-    print('Number of decoder parameters = %.2fm' % (model.decoder.nparams/1e6))
+    log.info('Number of encoder parameters = %.2fm' % (model.encoder.nparams/1e6))
+    log.info('Number of decoder parameters = %.2fm' % (model.decoder.nparams/1e6))
 
-    print('Initializing optimizer...')
+    log.info('Initializing optimizer...')
     optimizer = torch.optim.Adam(params=model.parameters(), lr=cfg.training.learning_rate)
 
-    print('Logging test batch...')
+    log.info('Logging test batch...')
     test_batch = test_dataset.sample_test_batch(size=cfg.training.test_size)
     for item in test_batch:
         mel, spk = item['y'], item['spk']
@@ -61,11 +64,11 @@ def main(cfg: DictConfig):
 
     out_size = fix_len_compatibility(2*cfg.data.sample_rate//256)
 
-    print('Start training...')
+    log.info('Start training...')
     iteration = 0
     for epoch in range(1, cfg.training.n_epochs + 1):
         model.eval()
-        print('Synthesis...')
+        log.info('Synthesis...')
         with torch.no_grad():
             for item in test_batch:
                 x = item['x'].to(torch.long).unsqueeze(0).to(device)
@@ -97,8 +100,8 @@ def main(cfg: DictConfig):
         with tqdm(loader, total=len(train_dataset)//cfg.training.batch_size) as progress_bar:
             for batch in progress_bar:
                 model.zero_grad()
-                x, x_lengths = batch['x'].to(device), batch['x_lengths'].cuda()
-                y, y_lengths = batch['y'].to(device), batch['y_lengths'].cuda()
+                x, x_lengths = batch['x'].to(device), batch['x_lengths'].to(device)
+                y, y_lengths = batch['y'].to(device), batch['y_lengths'].to(device)
                 spk = batch['spk'].to(device)
                 dur_loss, prior_loss, diff_loss = model.compute_loss(x, x_lengths,
                                                                      y, y_lengths,
@@ -134,9 +137,9 @@ def main(cfg: DictConfig):
         msg = 'Epoch %d: duration loss = %.3f ' % (epoch, np.mean(dur_losses))
         msg += '| prior loss = %.3f ' % np.mean(prior_losses)
         msg += '| diffusion loss = %.3f\n' % np.mean(diff_losses)
-        with open(f'{log_dir}/train.log', 'a') as f:
-            f.write(msg)
 
+        log.info(msg)
+        
         if epoch % cfg.training.save_every > 0:
             continue
         

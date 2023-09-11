@@ -6,7 +6,7 @@ At the moment it's currently a revamp of [Grad-TTS](https://github.com/huawei-no
 
 ## Installation
 
-Python 3.11.4
+Python 3.9.17
 
 ```
 pip install -r requirements.txt
@@ -18,18 +18,25 @@ cd model/monotonic_align; python setup.py build_ext --inplace; cd ../..
 
 ## Train a Grad-TTS model
 
-Create a filelist in the form `f'{audio_path}|{transcription}|{speaker_id}'` where `speaker_id` is an integer. Edit `config/data/data_example.yaml` to suit your dataset.
+Create a filelist in the form `f'{audio_path}|{transcription}|{speaker_id}'` where `speaker_id` is an integer. Edit `config/data/data.yaml` to suit your dataset.
 
 Run
 ```
-python train_multi_speaker.py --config-name=config +data=data_example
+python train_multi_speaker.py --config-name=config +data=data
 ```
 
 Edit config as desired, or make use of hydra's [multirun](https://hydra.cc/docs/1.0/tutorials/basic/running_your_app/multi-run/#internaldocs-banner) utility.
 
 ## Evaluate a TTS model
 
-Coming soon
+First generate predictions for your dataset
+```
+python generate_tts_preds.py --config-name=config +data=delete_this +eval=eval
+```
+Then calculate `log-f0 rmse`
+```
+python evaluate_tts.py --config-name=config +data=data +eval=eval
+```
 
 ## Compute log-likelihoods
 
