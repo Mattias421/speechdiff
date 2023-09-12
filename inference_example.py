@@ -1,6 +1,5 @@
 
 import numpy as np
-from tqdm import tqdm
 
 import torch
 from torch.utils.data import DataLoader
@@ -8,13 +7,10 @@ from torch.utils.tensorboard import SummaryWriter
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
-import os
 
 from model import GradTTS
-from data import TextMelSpeakerDataset, TextMelSpeakerBatchCollate
-from utils import plot_tensor, save_plot
+from utils import save_plot
 from text.symbols import symbols
-from model.utils import fix_len_compatibility
 
 from nemo.collections.tts.models import HifiGanModel
 from scipy.io.wavfile import write
