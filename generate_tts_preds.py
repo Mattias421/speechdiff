@@ -58,7 +58,7 @@ def main(cfg: DictConfig):
 
                 out_path = f'{cfg.eval.out_dir}/{i}.wav'
 
-                write(out_path, 22050, audio)
+                write(out_path, 16000, audio)
 
                 filelist.append(out_path)
 
