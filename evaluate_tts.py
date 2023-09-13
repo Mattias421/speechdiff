@@ -31,6 +31,7 @@ from jiwer import wer
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
+import yaml
 import logging
 
 log = logging.getLogger()
@@ -161,7 +162,7 @@ def obtainMetrics(predFile, refFile):
 
     return  log_f0_rmse, mcd, gpe, vde, ffe
 
-def logf0(pred_x, ref_x, fs):
+def calc_logf0(pred_x, ref_x, fs):
     pred_mcep, pred_f0 = world_extract(x=pred_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
     ref_mcep, ref_f0 = world_extract(x=ref_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
 
@@ -178,7 +179,7 @@ def logf0(pred_x, ref_x, fs):
 
     return log_f0_rmse
 
-def mcd(pred_x, ref_x, fs):
+def calc_mcd(pred_x, ref_x, fs):
     gen_mcep = sptk_extract(x=pred_x, fs=fs, n_fft=512,n_shift=256,mcep_dim=34,mcep_alpha=0.45)
     gt_mcep = sptk_extract(x=ref_x, fs=fs, n_fft=512,n_shift=256, mcep_dim=34,mcep_alpha=0.45)
 
@@ -192,13 +193,10 @@ def mcd(pred_x, ref_x, fs):
 
     return mcd
 
-def wer_change(pred_file, ref_file, ref, model):
+def get_transcriptions(pred_file, ref_file, ref, model):
     pred_transcription, ref_transcription = model.transcribe([pred_file, ref_file])
 
-    wer_diff = wer(ref, pred_transcription) - wer(ref, ref_transcription)
-
-    return wer_diff
-
+    return pred_transcription, ref_transcription
 
 @hydra.main(version_base=None, config_path='./config')
 def main(cfg):
@@ -228,18 +226,43 @@ def main(cfg):
 
     asr_model = asr.from_pretrained("nvidia/stt_en_conformer_ctc_large")
 
+    pred_texts = []
+    ref_texts = []
+
     for i, (pred, ref) in enumerate(files):
         pred_x, pred_fs = sf.read(pred,dtype="float32") 
         ref_x, ref_fs = sf.read(ref,dtype="float32")    
         fs = pred_fs
         
-        log_f0 = log_f0(pred_x, ref_x, fs)
-        mcd = mcd(pred_x, ref_x, fs)
+        log_f0 = calc_logf0(pred_x, ref_x, fs)
+        mcd = calc_mcd(pred_x, ref_x, fs)
 
         results[i] = [log_f0, mcd]
 
+        p_text, r_text = get_transcriptions(pred, ref, ref_transcriptions[i], asr_model)
+        pred_texts.append(p_text)
+        ref_texts.append(r_text)
+
     log.info(np.mean(results))
     np.save('tts_metrics.npy', results)
+
+    wer_change = wer(ref_transcriptions, pred_texts) - wer(ref_transcriptions, ref_texts)
+
+    logf0 = results[:, 0]
+    mcd = results[:, 1]
+
+    results = {
+        'max_logf0': max(logf0),
+        'min_logf0': min(logf0),
+        'mean_logf0': np.mean(logf0),
+        'max_mcd': max(mcd),
+        'min_mcd': min(mcd),
+        'mean_mcd': np.mean(mcd),
+        'wer_change': wer_change
+    }
+
+    with open('results.yaml', 'w') as f:
+        yaml.dump(results, f)
 
 if __name__ == '__main__':
     main()
