@@ -15,14 +15,16 @@
 
 # pylint: skip-file
 # pytype: skip-file
+
+
+# calculate log likelihood for grad-tts
+
 """Various sampling methods."""
 
 import torch
 import numpy as np
 from scipy import integrate
 from likelihood import utils_sde as mutils
-
-import matplotlib.pyplot as plt
 
 def get_div_fn(fn):
   """Create the divergence function of `fn` using the Hutchinson-Skilling trace estimator."""
@@ -96,7 +98,7 @@ def get_likelihood_fn(sde, inverse_scaler, hutchinson_type='Rademacher',
         logp_grad = mutils.to_flattened_numpy(div_fn(model, sample, vec_t, epsilon))
         return np.concatenate([drift, logp_grad], axis=0)
       
-      def euler_maruyama(ode_func, init, N=100):
+      def euler_method(ode_func, init, N=100):
         h = 1 / N
         y = init
 
@@ -111,7 +113,7 @@ def get_likelihood_fn(sde, inverse_scaler, hutchinson_type='Rademacher',
       init = np.concatenate([mutils.to_flattened_numpy(data), np.zeros((shape[0],))], axis=0)
 
       if euler > 0:
-        solution = euler_maruyama(ode_func, init, euler)
+        solution = euler_method(ode_func, init, euler)
         zp = solution
       else:
         solution = integrate.solve_ivp(ode_func, (eps, sde.T), init, rtol=rtol, atol=atol, method=method)
@@ -121,12 +123,7 @@ def get_likelihood_fn(sde, inverse_scaler, hutchinson_type='Rademacher',
       delta_logp = mutils.from_flattened_numpy(zp[-shape[0]:], (shape[0],)).to(data.device).type(torch.float32)
       prior_logp = sde.prior_logp(z)
       
-      bpd = -(prior_logp + delta_logp) # / np.log(2)
-      # N = np.prod(shape[1:])
-      # bpd = bpd / N
-      # A hack to convert log-likelihoods to bits/dim
-      # offset = 7. - inverse_scaler(-1.)
-      # bpd = bpd + offset
+      bpd = -(prior_logp + delta_logp)
 
       return bpd
 
