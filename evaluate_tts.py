@@ -26,6 +26,9 @@ import soundfile as sf
 from fastdtw import fastdtw
 from scipy import spatial
 
+import nemo.collections.asr.models.EncDecCTCModelBPE as asr
+from jiwer import wer
+
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import logging
@@ -162,18 +165,15 @@ def logf0(pred_x, ref_x, fs):
     pred_mcep, pred_f0 = world_extract(x=pred_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
     ref_mcep, ref_f0 = world_extract(x=ref_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
 
-    # DTW
     _, path = fastdtw(pred_mcep, ref_mcep, dist=spatial.distance.euclidean)
     twf = np.array(path).T
     pred_f0_dtw = pred_f0[twf[0]]
     ref_f0_dtw = ref_f0[twf[1]]
 
-    ##Get voiced part
     nonzero_idxs = np.where((pred_f0_dtw!=0)&(ref_f0_dtw!=0))[0]
     pred_f0_dtw_voiced = np.log(pred_f0_dtw[nonzero_idxs])
     ref_f0_dtw_voiced = np.log(ref_f0_dtw[nonzero_idxs])
 
-    ##log F0 RMSE
     log_f0_rmse = np.sqrt(np.mean((pred_f0_dtw_voiced-ref_f0_dtw_voiced)**2))
 
     return log_f0_rmse
@@ -182,17 +182,23 @@ def mcd(pred_x, ref_x, fs):
     gen_mcep = sptk_extract(x=pred_x, fs=fs, n_fft=512,n_shift=256,mcep_dim=34,mcep_alpha=0.45)
     gt_mcep = sptk_extract(x=ref_x, fs=fs, n_fft=512,n_shift=256, mcep_dim=34,mcep_alpha=0.45)
 
-    # DTW
     _, path = fastdtw(gen_mcep, gt_mcep, dist=spatial.distance.euclidean)
     twf = np.array(path).T
     gen_mcep_dtw = gen_mcep[twf[0]]
     gt_mcep_dtw = gt_mcep[twf[1]]
 
-    ##MCD
     diff2sum =  np.sum((gen_mcep_dtw - gt_mcep_dtw) ** 2, 1)
     mcd = np.mean(10.0 / np.log(10.0) * np.sqrt(2 * diff2sum), 0)
 
     return mcd
+
+def wer_change(pred_file, ref_file, ref, model):
+    pred_transcription, ref_transcription = model.transcribe([pred_file, ref_file])
+
+    wer_diff = wer(ref, pred_transcription) - wer(ref, ref_transcription)
+
+    return wer_diff
+
 
 @hydra.main(version_base=None, config_path='./config')
 def main(cfg):
@@ -209,6 +215,7 @@ def main(cfg):
     pred_filelist_path= cfg.eval.pred_filelist_path
     ref_files = parse_filelist(ref_filelist_path, split_char='|')
     ref_files = [ref[0] for ref in ref_files]
+    ref_transcriptions = [ref[1] for ref in ref_files]
 
     with open(pred_filelist_path, 'r') as file:
         # Read the lines of the file into a list of strings
@@ -218,6 +225,8 @@ def main(cfg):
     files = zip(pred_files[:n_evaluations], ref_files[:n_evaluations])
 
     results = np.zeros((n_evaluations, 2))
+
+    asr_model = asr.from_pretrained("nvidia/stt_en_conformer_ctc_large")
 
     for i, (pred, ref) in enumerate(files):
         pred_x, pred_fs = sf.read(pred,dtype="float32") 
