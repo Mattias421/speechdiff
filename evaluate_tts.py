@@ -158,10 +158,7 @@ def obtainMetrics(predFile, refFile):
 
     return  log_f0_rmse, mcd, gpe, vde, ffe
 
-def logf0(predFile, refFile):
-    pred_x, pred_fs = sf.read(predFile,dtype="float32")  ##int16")
-    ref_x, ref_fs = sf.read(refFile,dtype="float32")    ##int16")
-    fs = pred_fs
+def logf0(pred_x, ref_x, fs):
     pred_mcep, pred_f0 = world_extract(x=pred_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
     ref_mcep, ref_f0 = world_extract(x=ref_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
 
@@ -180,6 +177,22 @@ def logf0(predFile, refFile):
     log_f0_rmse = np.sqrt(np.mean((pred_f0_dtw_voiced-ref_f0_dtw_voiced)**2))
 
     return log_f0_rmse
+
+def mcd(pred_x, ref_x, fs):
+    gen_mcep = sptk_extract(x=pred_x, fs=fs, n_fft=512,n_shift=256,mcep_dim=34,mcep_alpha=0.45)
+    gt_mcep = sptk_extract(x=ref_x, fs=fs, n_fft=512,n_shift=256, mcep_dim=34,mcep_alpha=0.45)
+
+    # DTW
+    _, path = fastdtw(gen_mcep, gt_mcep, dist=spatial.distance.euclidean)
+    twf = np.array(path).T
+    gen_mcep_dtw = gen_mcep[twf[0]]
+    gt_mcep_dtw = gt_mcep[twf[1]]
+
+    ##MCD
+    diff2sum =  np.sum((gen_mcep_dtw - gt_mcep_dtw) ** 2, 1)
+    mcd = np.mean(10.0 / np.log(10.0) * np.sqrt(2 * diff2sum), 0)
+
+    return mcd
 
 @hydra.main(version_base=None, config_path='./config')
 def main(cfg):
@@ -204,11 +217,17 @@ def main(cfg):
     n_evaluations = cfg.eval.n_evaluations
     files = zip(pred_files[:n_evaluations], ref_files[:n_evaluations])
 
-    results = np.zeros((n_evaluations))
+    results = np.zeros((n_evaluations, 2))
 
     for i, (pred, ref) in enumerate(files):
-        results[i] = logf0(pred.rstrip('\n'), ref)
-        log.info(f'File {i} logf0 {results[i]}')
+        pred_x, pred_fs = sf.read(pred,dtype="float32") 
+        ref_x, ref_fs = sf.read(ref,dtype="float32")    
+        fs = pred_fs
+        
+        log_f0 = log_f0(pred_x, ref_x, fs)
+        mcd = mcd(pred_x, ref_x, fs)
+
+        results[i] = [log_f0, mcd]
 
     log.info(np.mean(results))
     np.save('tts_metrics.npy', results)
