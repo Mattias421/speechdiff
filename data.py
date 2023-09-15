@@ -65,6 +65,91 @@ def mel_spectrogram(y, n_fft, num_mels, sampling_rate, hop_size, win_size, fmin,
     return mel
 
 
+class TextMelDataset(torch.utils.data.Dataset):
+    def __init__(self, split, cfg):
+        super().__init__()
+
+        random.seed(cfg.training.seed)
+        cfg = cfg.data
+        
+        if split == 'train':
+            filelist_path = cfg.train_filelist_path
+        elif split == 'dev':
+            filelist_path = cfg.dev_filelist_path
+        elif split == 'test':
+            filelist_path = cfg.test_filelist_path
+
+        self.filelist = parse_filelist(filelist_path, split_char='|')
+        self.cmudict = cmudict.CMUDict(cfg.cmudict_path)
+        self.n_fft = cfg.n_fft
+        self.n_mels = cfg.n_feats
+        self.sample_rate = cfg.sample_rate
+        self.hop_length = cfg.hop_length
+        self.win_length = cfg.win_length
+        self.f_min = cfg.f_min
+        self.f_max = cfg.f_max
+        self.add_blank = cfg.add_blank
+
+    def get_pair(self, line):
+        filepath, text = line[0], line[1]
+        text = self.get_text(text, add_blank=self.add_blank)
+        mel = self.get_mel(filepath)
+        return (text, mel)
+
+    def get_mel(self, filepath):
+        audio, sr = ta.load(filepath)
+        assert sr == self.sample_rate
+        mel = mel_spectrogram(audio, self.n_fft, self.n_mels, self.sample_rate, self.hop_length,
+                              self.win_length, self.f_min, self.f_max, center=False).squeeze()
+        return mel
+
+    def get_text(self, text, add_blank=True):
+        text_norm = text_to_sequence(text, dictionary=self.cmudict)
+        if self.add_blank:
+            text_norm = intersperse(text_norm, len(symbols))  # add a blank token, whose id number is len(symbols)
+        text_norm = torch.LongTensor(text_norm)
+        return text_norm
+
+    def __getitem__(self, index):
+        text, mel= self.get_pair(self.filelist[index])
+        item = {'y': mel, 'x': text}
+        return item
+
+    def __len__(self):
+        return len(self.filelist)
+
+    def sample_test_batch(self, size):
+        idx = np.random.choice(range(len(self)), size=size, replace=False)
+        test_batch = []
+        for index in idx:
+            test_batch.append(self.__getitem__(index))
+        return test_batch
+
+
+class TextMelBatchCollate(object):
+    def __call__(self, batch):
+        B = len(batch)
+        y_max_length = max([item['y'].shape[-1] for item in batch])
+        y_max_length = fix_len_compatibility(y_max_length)
+        x_max_length = max([item['x'].shape[-1] for item in batch])
+        n_feats = batch[0]['y'].shape[-2]
+
+        y = torch.zeros((B, n_feats, y_max_length), dtype=torch.float32)
+        x = torch.zeros((B, x_max_length), dtype=torch.long)
+        y_lengths, x_lengths = [], []
+
+        for i, item in enumerate(batch):
+            y_, x_ = item['y'], item['x']
+            y_lengths.append(y_.shape[-1])
+            x_lengths.append(x_.shape[-1])
+            y[i, :, :y_.shape[-1]] = y_
+            x[i, :x_.shape[-1]] = x_
+
+        y_lengths = torch.LongTensor(y_lengths)
+        x_lengths = torch.LongTensor(x_lengths)
+        return {'x': x, 'x_lengths': x_lengths, 'y': y, 'y_lengths': y_lengths}
+
+
 class TextMelSpeakerDataset(torch.utils.data.Dataset):
     def __init__(self, split, cfg):
         super().__init__()

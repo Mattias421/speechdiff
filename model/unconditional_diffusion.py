@@ -252,8 +252,8 @@ class Diffusion(BaseModule):
         return xt
 
     @torch.no_grad()
-    def forward(self, z, mask, n_timesteps, stoc=False, spk=None):
-        return self.reverse_diffusion(z, mask, n_timesteps, stoc, spk)
+    def forward(self, z, mask, n_timesteps, stoc=False):
+        return self.reverse_diffusion(z, mask, n_timesteps, stoc)
 
     def loss_t(self, x0, mask, t):
         xt, z = self.forward_diffusion(x0, mask, t)

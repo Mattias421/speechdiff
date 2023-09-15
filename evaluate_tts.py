@@ -2,23 +2,9 @@
 Thank you Alfredo!
 """
 import numpy as np
-from tqdm import tqdm
-import json
-import argparse
-import torch
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
-from model import GradTTS
-from data import TextMelSpeakerDataset, TextMelSpeakerBatchCollate
-from utils import plot_tensor, save_plot
 from text.symbols import symbols
 from utils import parse_filelist
-
-import sys
-sys.path.append('./hifi-gan/')
-from env import AttrDict
-from models import Generator as HiFiGAN
 
 import pyworld as pw
 import pysptk

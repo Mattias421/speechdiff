@@ -16,9 +16,9 @@ from model.unconditional_diffusion import Diffusion
 from model.utils import sequence_mask
 
 
-class GradTTS(BaseModule):
+class SpeechSynth(BaseModule):
     def __init__(self, cfg):
-        super(GradTTS, self).__init__()
+        super(SpeechSynth, self).__init__()
 
         self.n_feats = cfg.data.n_feats
 
