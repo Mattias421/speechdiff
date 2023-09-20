@@ -138,11 +138,12 @@ class GradLogPEstimator2d(BaseModule):
         self.mlp = torch.nn.Sequential(torch.nn.Linear(dim, dim * 4), Mish(),
                                        torch.nn.Linear(dim * 4, dim))
 
-        dims = [2, *map(lambda m: dim * m, dim_mults)]
+        dims = [1, *map(lambda m: dim * m, dim_mults)]
         in_out = list(zip(dims[:-1], dims[1:]))
         self.downs = torch.nn.ModuleList([])
         self.ups = torch.nn.ModuleList([])
         num_resolutions = len(in_out)
+
 
         for ind, (dim_in, dim_out) in enumerate(in_out):
             is_last = ind >= (num_resolutions - 1)
@@ -170,6 +171,7 @@ class GradLogPEstimator2d(BaseModule):
         t = self.time_pos_emb(t, scale=self.pe_scale)
         t = self.mlp(t)
 
+        x = x.unsqueeze(1)
         mask = mask.unsqueeze(1)
 
         hiddens = []

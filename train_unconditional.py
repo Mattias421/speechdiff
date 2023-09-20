@@ -36,6 +36,14 @@ def main(cfg: DictConfig):
     log_dir = cfg.training.tensorboard_dir
     logger = SummaryWriter(log_dir=log_dir)
 
+    directory_name = "my_directory"
+
+    # Check if the directory exists
+    if not os.path.exists(cfg.training.checkpoint_dir):
+        # Create the directory
+        os.makedirs(cfg.training.checkpoint_dir)
+
+
     log.info('Initializing data loaders...')
     train_dataset = TextMelDataset('train', cfg)
     batch_collate = TextMelBatchCollate()
@@ -47,7 +55,6 @@ def main(cfg: DictConfig):
     log.info('Initializing model...')
     model = SpeechSynth(cfg)
     model.to(device)
-    log.info('Number of encoder parameters = %.2fm' % (model.encoder.nparams/1e6))
     log.info('Number of decoder parameters = %.2fm' % (model.decoder.nparams/1e6))
 
     log.info('Initializing optimizer...')
@@ -57,10 +64,9 @@ def main(cfg: DictConfig):
     test_batch = test_dataset.sample_test_batch(size=cfg.training.test_size)
     for item in test_batch:
         mel = item['y']
-        i = int(spk.cpu())
-        logger.add_image(f'image_{i}/ground_truth', plot_tensor(mel.squeeze()),
+        logger.add_image(f'image/ground_truth', plot_tensor(mel.squeeze()),
                          global_step=0, dataformats='HWC')
-        save_plot(mel.squeeze(), f'{log_dir}/original_{i}.png')
+        save_plot(mel.squeeze(), f'{log_dir}/original.png')
 
     out_size = fix_len_compatibility(2*cfg.data.sample_rate//256)
 
@@ -72,26 +78,25 @@ def main(cfg: DictConfig):
         with torch.no_grad():
             for item in test_batch:
 
-                shape = item['y'].size()
+                x = item['y'][None].to(device)
+                lengths = torch.tensor(x.size(-1))[None]
 
-                y_dec= model(shape, n_timesteps=50, spk=spk)
+                y_dec= model(x, lengths, n_timesteps=50)
 
-                logger.add_image(f'image_{i}/generated_dec',
+                logger.add_image(f'image/generated_dec',
                                  plot_tensor(y_dec.squeeze().cpu()),
                                  global_step=iteration, dataformats='HWC')
                 save_plot(y_dec.squeeze().cpu(), 
-                          f'{log_dir}/generated_dec_{i}.png')
+                          f'{log_dir}/generated_dec.png')
         
         model.train()
-        dur_losses = []
         prior_losses = []
         diff_losses = []
         with tqdm(loader, total=len(train_dataset)//cfg.training.batch_size) as progress_bar:
             for batch in progress_bar:
                 model.zero_grad()
                 y, y_lengths = batch['y'].to(device), batch['y_lengths'].to(device)
-                prior_loss, diff_loss = model.compute_loss(y, y_lengths,
-                                                                     out_size=out_size)
+                prior_loss, diff_loss = model.compute_loss(y, y_lengths)
                 use_prior_loss = True
                 if use_prior_loss == True:
                     loss = sum([prior_loss, diff_loss])

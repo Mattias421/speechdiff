@@ -123,6 +123,8 @@ class GradTTS(BaseModule):
         y_mask = sequence_mask(y_lengths, y_max_length).unsqueeze(1).to(x_mask)
         attn_mask = x_mask.unsqueeze(-1) * y_mask.unsqueeze(2)
 
+        print(y_mask.size())
+
         # Use MAS to find most likely alignment `attn` between text and mel-spectrogram
         with torch.no_grad(): 
             const = -0.5 * math.log(2 * math.pi) * self.n_feats

@@ -177,11 +177,13 @@ class GradLogPEstimator2d(BaseModule):
         t = self.time_pos_emb(t, scale=self.pe_scale)
         t = self.mlp(t)
 
+
         if self.n_spks < 2:
             x = torch.stack([mu, x], 1)
         else:
             s = s.unsqueeze(-1).repeat(1, 1, x.shape[-1])
             x = torch.stack([mu, x, s], 1)
+
         mask = mask.unsqueeze(1)
 
         hiddens = []
