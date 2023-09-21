@@ -12,7 +12,7 @@ import soundfile as sf
 from fastdtw import fastdtw
 from scipy import spatial
 
-import nemo.collections.asr.models.EncDecCTCModelBPE as asr
+#import nemo.collections.asr.models.EncDecCTCModelBPE as asr
 from jiwer import wer
 
 import hydra
@@ -151,15 +151,22 @@ def obtainMetrics(predFile, refFile):
 def calc_logf0(pred_x, ref_x, fs):
     pred_mcep, pred_f0 = world_extract(x=pred_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
     ref_mcep, ref_f0 = world_extract(x=ref_x, fs=fs, f0min=70, f0max=400, n_fft=512, n_shift=256, mcep_dim=34, mcep_alpha=0.45) ##, mcep_dim=34, mcep_alpha=0.45)
-
+    
+      
     _, path = fastdtw(pred_mcep, ref_mcep, dist=spatial.distance.euclidean)
     twf = np.array(path).T
     pred_f0_dtw = pred_f0[twf[0]]
     ref_f0_dtw = ref_f0[twf[1]]
-
+    
+    #print('pred_f0_dtw: ',pred_f0_dtw)
+    #print('ref_f0_dtw: ',ref_f0_dtw)
+    
     nonzero_idxs = np.where((pred_f0_dtw!=0)&(ref_f0_dtw!=0))[0]
+    #print('nonzero_idxs: ', nonzero_idxs)
     pred_f0_dtw_voiced = np.log(pred_f0_dtw[nonzero_idxs])
     ref_f0_dtw_voiced = np.log(ref_f0_dtw[nonzero_idxs])
+    
+    #print('pred_f0_dtw_voiced: ', pred_f0_dtw_voiced)
 
     log_f0_rmse = np.sqrt(np.mean((pred_f0_dtw_voiced-ref_f0_dtw_voiced)**2))
 
@@ -203,37 +210,46 @@ def main(cfg):
 
     with open(pred_filelist_path, 'r') as file:
         # Read the lines of the file into a list of strings
-        pred_files = file.readlines()
-
+        pred_files = [line.strip() for line in file.readlines()]   #strip \n from lines
+        
     n_evaluations = cfg.eval.n_evaluations
+    #n_evaluations = 50
     files = zip(pred_files[:n_evaluations], ref_files[:n_evaluations])
 
     results = np.zeros((n_evaluations, 2))
-
-    asr_model = asr.from_pretrained("nvidia/stt_en_conformer_ctc_large")
+    
+    #asr_model = asr.from_pretrained("nvidia/stt_en_conformer_ctc_large")
 
     pred_texts = []
     ref_texts = []
-
+    counter = 0
     for i, (pred, ref) in enumerate(files):
+        #print(pred)
         pred_x, pred_fs = sf.read(pred,dtype="float32") 
         ref_x, ref_fs = sf.read(ref,dtype="float32")    
         fs = pred_fs
-        
+        #print('FS: ', fs)
         log_f0 = calc_logf0(pred_x, ref_x, fs)
+        #print('log_f0', log_f0)
+        if np.isnan(log_f0):
+            log_f0 = 0
+            counter +=1
+         
         mcd = calc_mcd(pred_x, ref_x, fs)
 
         results[i] = [log_f0, mcd]
-
+        #print('RESULTS I: ', results[i])
+        '''
         p_text, r_text = get_transcriptions(pred, ref, ref_transcriptions[i], asr_model)
         pred_texts.append(p_text)
         ref_texts.append(r_text)
-
+        '''
     log.info(np.mean(results))
     np.save('tts_metrics.npy', results)
+    print('Number of log_f0 = 0: ', counter)
 
-    wer_change = wer(ref_transcriptions, pred_texts) - wer(ref_transcriptions, ref_texts)
-
+    #wer_change = wer(ref_transcriptions, pred_texts) - wer(ref_transcriptions, ref_texts)
+    wer_change = 0
     logf0 = results[:, 0]
     mcd = results[:, 1]
 
@@ -246,9 +262,14 @@ def main(cfg):
         'mean_mcd': np.mean(mcd),
         'wer_change': wer_change
     }
-
+    
+    print(results)
+    
     with open('results.yaml', 'w') as f:
         yaml.dump(results, f)
+    
+    with open('results.txt', 'w') as file:
+        file.write(str(results))
 
 if __name__ == '__main__':
     main()
