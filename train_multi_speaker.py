@@ -144,6 +144,7 @@ def main(cfg: DictConfig):
             continue
         
         ckpt = model.state_dict()
+        os.makedirs(f"{cfg.training.checkpoint_dir}/", exist_ok=True)
         torch.save(ckpt, f=f"{cfg.training.checkpoint_dir}/grad_{epoch}.pt")
 
 if __name__ == '__main__':
