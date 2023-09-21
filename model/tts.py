@@ -26,11 +26,8 @@ class GradTTS(BaseModule):
         self.spk_emb_dim = cfg.model.spk_emb_dim
         self.n_feats = cfg.data.n_feats
 
-        if self.n_spks == -1:
-            self.spk_emb = None
-        elif self.n_spks > 1:
-            # Get speaker embedding
-            self.spk_emb = torch.nn.Embedding(self.n_spks, self.spk_emb_dim)
+        # Get speaker embedding
+        self.spk_emb = torch.nn.Embedding(self.n_spks, self.spk_emb_dim)
 
         self.encoder = TextEncoder(cfg)
         self.decoder = Diffusion(cfg)
@@ -55,12 +52,8 @@ class GradTTS(BaseModule):
         """
         x, x_lengths = self.relocate_input([x, x_lengths])
 
-        if self.n_spks == -1:
-                    spk = spk
-
-        elif self.n_spks > 1:
-            # Get speaker embedding
-            spk = self.spk_emb(spk)
+        # Get speaker embedding
+        spk = self.spk_emb(spk)
 
         
 
@@ -107,14 +100,10 @@ class GradTTS(BaseModule):
                 Should be divisible by 2^{num of UNet downsamplings}. Needed to increase batch size.
         """
         x, x_lengths, y, y_lengths = self.relocate_input([x, x_lengths, y, y_lengths])
+        
 
-        if self.n_spks == -1:
-            # use pretrained speaker embedding
-            spk = spk
-
-        elif self.n_spks > 1:
-            # Get speaker embedding
-            spk = self.spk_emb(spk)
+        # Get speaker embedding
+        spk = self.spk_emb(spk)
         
         # Get encoder_outputs `mu_x` and log-scaled token durations `logw`
         mu_x, logw, x_mask = self.encoder(x, x_lengths, spk)
@@ -142,7 +131,7 @@ class GradTTS(BaseModule):
         dur_loss = duration_loss(logw, logw_, x_lengths)
 
         # Cut a small segment of mel-spectrogram in order to increase batch size
-        if not isinstance(out_size, type(None)):
+        if not isinstance(out_size, type(None)) and y_max_length > out_size:
             max_offset = (y_lengths - out_size).clamp(0)
             offset_ranges = list(zip([0] * max_offset.shape[0], max_offset.cpu().numpy()))
             out_offset = torch.LongTensor([
@@ -187,12 +176,10 @@ class GradTTS(BaseModule):
         """
 
         x, x_lengths, y, y_lengths = self.relocate_input([x, x_lengths, y, y_lengths])
+        
 
-        if self.n_spks == -1:
-                            spk = spk
-        elif self.n_spks > 1:
-            # Get speaker embedding
-            spk = self.spk_emb(spk)
+        # Get speaker embedding
+        spk = self.spk_emb(spk)
         
       
         # Get encoder_outputs `mu_x` and log-scaled token durations `logw`
