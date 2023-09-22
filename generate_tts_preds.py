@@ -14,8 +14,8 @@ import soundfile as sf
 from model import GradTTS
 from data import TextMelSpeakerDataset, TextMelSpeakerBatchCollate
 
-from nemo.collections.tts.models import HifiGanModel
-#from speechbrain.pretrained import HIFIGAN
+#from nemo.collections.tts.models import HifiGanModel
+from speechbrain.pretrained import HIFIGAN
 from scipy.io.wavfile import write
 
 @hydra.main(version_base=None, config_path='./config')
@@ -41,8 +41,8 @@ def main(cfg: DictConfig):
     print('Number of decoder parameters = %.2fm' % (model.decoder.nparams/1e6))
 
     print('Initializing vocoder...')
-    vocoder = HifiGanModel.from_pretrained(model_name='nvidia/tts_hifigan')
-    #vocoder = HIFIGAN.from_hparams(source="speechbrain/tts-hifigan-libritts-16kHz")
+    #vocoder = HifiGanModel.from_pretrained(model_name='nvidia/tts_hifigan')
+    vocoder = HIFIGAN.from_hparams(source="speechbrain/tts-hifigan-libritts-16kHz")
 
     filelist = []
 
@@ -54,13 +54,17 @@ def main(cfg: DictConfig):
 
                 y_enc, y_dec, attn = model.forward(x, x_lengths, n_timesteps=cfg.eval.timesteps, spk=spk)
 
-                audio = vocoder.convert_spectrogram_to_audio(spec=y_dec)
+                audio = vocoder.decode_batch(y_dec)
                 audio = audio.squeeze().to('cpu').numpy()
+                
+                out = f'{cfg.eval.out_dir}/inference_files/'
+                os.makedirs(out, exist_ok=True)
 
-                out_path = f'{cfg.eval.out_dir}/{i}.wav'
+                out_path = f"{out}{i}.wav"
+
 
                 #write(out_path, 16000, audio)
-                sf.write(out_path, audio, 22050)
+                sf.write(out_path, audio, 16000)
 
 
                 filelist.append(out_path)
@@ -71,3 +75,6 @@ def main(cfg: DictConfig):
 
 if __name__ == '__main__':
     main()
+    
+
+  
