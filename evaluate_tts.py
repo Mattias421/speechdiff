@@ -14,6 +14,10 @@ from scipy import spatial
 
 #import nemo.collections.asr.models.EncDecCTCModelBPE as asr
 from jiwer import wer
+#from speechbrain.pretrained import EncoderASR
+from transformers import pipeline
+
+
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -187,9 +191,11 @@ def calc_mcd(pred_x, ref_x, fs):
     return mcd
 
 def get_transcriptions(pred_file, ref_file, ref, model):
-    pred_transcription, ref_transcription = model.transcribe([pred_file, ref_file])
-
-    return pred_transcription, ref_transcription
+    #pred_transcription = model.transcribe_file(pred_file)
+    #ref_transcription = model.transcribe_file(ref_file)
+    pred_transcription = model(pred_file)
+    ref_transcription = model(ref_file)
+    return pred_transcription['text'], ref_transcription['text']
 
 @hydra.main(version_base=None, config_path='./config')
 def main(cfg):
@@ -202,33 +208,39 @@ def main(cfg):
         ref_filelist_path= cfg.data.dev_filelist_path
     elif split == 'test':
         ref_filelist_path = cfg.data.test_filelist_path
-
+    
+    print('reference filelist path: ', ref_filelist_path)
     pred_filelist_path= cfg.eval.pred_filelist_path
-    ref_files = parse_filelist(ref_filelist_path, split_char='|')
-    ref_files = [ref[0] for ref in ref_files]
-    ref_transcriptions = [ref[1] for ref in ref_files]
+    ref_f = parse_filelist(ref_filelist_path, split_char='|')
+    ref_files = [ref[0] for ref in ref_f]
+    
+    
+    ref_transcriptions = [ref[1] for ref in ref_f]
 
+ 
     with open(pred_filelist_path, 'r') as file:
         # Read the lines of the file into a list of strings
         pred_files = [line.strip() for line in file.readlines()]   #strip \n from lines
         
     n_evaluations = cfg.eval.n_evaluations
-    #n_evaluations = 50
+    n_evaluations = len(pred_files)
     files = zip(pred_files[:n_evaluations], ref_files[:n_evaluations])
 
     results = np.zeros((n_evaluations, 2))
     
     #asr_model = asr.from_pretrained("nvidia/stt_en_conformer_ctc_large")
+    #asr_model = EncoderASR.from_hparams(source="speechbrain/asr-wav2vec2-commonvoice-14-en", savedir="/fastdata/speech-diff-dys/pretrained_models/asr-wav2vec2-commonvoice-14-en")
+    asr_model = pipeline("automatic-speech-recognition", model="openai/whisper-medium")
 
     pred_texts = []
     ref_texts = []
     counter = 0
+    output_lines = []
     for i, (pred, ref) in enumerate(files):
         #print(pred)
         pred_x, pred_fs = sf.read(pred,dtype="float32") 
         ref_x, ref_fs = sf.read(ref,dtype="float32")    
         fs = pred_fs
-        #print('FS: ', fs)
         log_f0 = calc_logf0(pred_x, ref_x, fs)
         #print('log_f0', log_f0)
         if np.isnan(log_f0):
@@ -239,17 +251,22 @@ def main(cfg):
 
         results[i] = [log_f0, mcd]
         #print('RESULTS I: ', results[i])
-        '''
         p_text, r_text = get_transcriptions(pred, ref, ref_transcriptions[i], asr_model)
         pred_texts.append(p_text)
         ref_texts.append(r_text)
-        '''
+        output_line = f"PRED: {p_text},  R_AUDIO: {r_text},  LABEL: {ref_transcriptions[i]}"
+        output_lines.append(output_line)
+        #print('PRED: ', p_text, ', R_AUDIO: ', r_text, ', LABEL: ', ref_transcriptions[i])
     log.info(np.mean(results))
     np.save('tts_metrics.npy', results)
     print('Number of log_f0 = 0: ', counter)
-
-    #wer_change = wer(ref_transcriptions, pred_texts) - wer(ref_transcriptions, ref_texts)
-    wer_change = 0
+    
+    with open ('transcriptions.txt', 'w') as file:
+        for line in output_lines:
+            file.write(line + '\n')
+    
+    wer_change = wer(ref_transcriptions[:n_evaluations], pred_texts) - wer(ref_transcriptions[:n_evaluations], ref_texts)
+    #wer_change = 0
     logf0 = results[:, 0]
     mcd = results[:, 1]
 
