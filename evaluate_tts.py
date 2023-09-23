@@ -13,7 +13,7 @@ from fastdtw import fastdtw
 from scipy import spatial
 
 #import nemo.collections.asr.models.EncDecCTCModelBPE as asr
-from jiwer import wer
+import jiwer
 #from speechbrain.pretrained import EncoderASR
 from transformers import pipeline
 
@@ -197,6 +197,19 @@ def get_transcriptions(pred_file, ref_file, ref, model):
     ref_transcription = model(ref_file)
     return pred_transcription['text'], ref_transcription['text']
 
+def wer(ref_transcriptions, pred_texts):
+    measures = jiwer.compute_measures(
+    ref_transcriptions,
+    pred_texts,
+    truth_transform=transformation,
+    hypothesis_transform=transformation
+    )
+    wer = measures['wer']
+    mer = measures['mer']
+    wil = measures['wil']
+    return wer
+
+
 @hydra.main(version_base=None, config_path='./config')
 def main(cfg):
 
@@ -265,7 +278,20 @@ def main(cfg):
         for line in output_lines:
             file.write(line + '\n')
     
-    wer_change = wer(ref_transcriptions[:n_evaluations], pred_texts) - wer(ref_transcriptions[:n_evaluations], ref_texts)
+    transformation = jiwer.Compose([
+    jiwer.ToLowerCase(),
+    jiwer.RemoveWhiteSpace(replace_by_space=True),
+    jiwer.RemoveMultipleSpaces(),
+    jiwer.RemovePunctuation(),
+    jiwer.ReduceToListOfListOfWords(word_delimiter=" "),
+    ])
+    
+    wer_pred = wer(ref_transcriptions[:n_evaluations], pred_texts)
+    wer_ref = wer(ref_transcriptions[:n_evaluations], ref_texts)
+    wer_change = wer_pred - wer_ref
+    #wer_change = wer(ref_transcriptions[:n_evaluations], pred_texts) - wer(ref_transcriptions[:n_evaluations], ref_texts)
+    
+    
     #wer_change = 0
     logf0 = results[:, 0]
     mcd = results[:, 1]
@@ -277,7 +303,9 @@ def main(cfg):
         'max_mcd': max(mcd),
         'min_mcd': min(mcd),
         'mean_mcd': np.mean(mcd),
-        'wer_change': wer_change
+        'wer_pred': wer_pred,
+        'wer_ref': wer_ref,
+        'wer_change': wer_change,
     }
     
     print(results)
