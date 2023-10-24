@@ -7,7 +7,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 @torch.no_grad()
-def log_likelihood(model, x, t_min, t_max, beta_min, beta_max, text_encoding, spk, mask atol=1e-3, rtol=1e-3, method='dopri5', seed=1):
+def log_likelihood(model, x, t_min, t_max, beta_min, beta_max, atol=1e-3, rtol=1e-3, method='dopri5', seed=1):
+    """
+    Must use the get_score_model function from GradTTS to get the score model
+    """
     os.environ['PYTHONHASHSEED'] = str(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -44,8 +47,8 @@ def log_likelihood(model, x, t_min, t_max, beta_min, beta_max, text_encoding, sp
 
     x = x.to(dtype=torch.float32)
     x_min = x, x.new_zeros([x.shape[0]])
-    t = x.new_tensor([sigma_min, sigma_max])
+    t = x.new_tensor([t_min, t_max])
     sol = odeint(ODEfunc().cuda(), x_min, t, atol=atol, rtol=rtol, method=method)
     latent, delta_ll = sol[0][-1], sol[1][-1]
-    ll_prior = torch.distributions.Normal(0, sigma_max).log_prob(latent).flatten(1).sum(1)
+    ll_prior = torch.distributions.Normal(0, t_max).log_prob(latent).flatten(1).sum(1)
     return ll_prior + delta_ll, ll_prior, delta_ll, latent
