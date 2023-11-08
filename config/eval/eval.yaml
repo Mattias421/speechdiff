@@ -3,3 +3,4 @@ timesteps: 50
 checkpoint: /path/to/checkpoint/
 out_dir: out
 n_evaluations: 500
+spk: 0

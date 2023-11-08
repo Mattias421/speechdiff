@@ -27,7 +27,7 @@ class GradTTS(BaseModule):
         self.n_feats = cfg.data.n_feats
 
         # Get speaker embedding
-        self.spk_emb = torch.nn.Embedding(self.n_spks, self.spk_emb_dim)
+        self.spk_emb = torch.nn.Embedding(self.n_spks, self.spk_emb_dim) if self.n_spks > 0 else None
 
         self.encoder = TextEncoder(cfg)
         self.decoder = Diffusion(cfg)
@@ -53,8 +53,10 @@ class GradTTS(BaseModule):
         x, x_lengths = self.relocate_input([x, x_lengths])
 
         # Get speaker embedding
-        spk = self.spk_emb(spk)
-
+        if self.spk_emb is None:
+            spk = None
+        else:
+            spk = self.spk_emb(spk)
         
 
         # Get encoder_outputs `mu_x` and log-scaled token durations `logw`
