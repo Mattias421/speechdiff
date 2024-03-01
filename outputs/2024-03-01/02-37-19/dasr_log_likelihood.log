@@ -1,0 +1,5 @@
+[2024-03-01 02:37:19,573][__main__][INFO] - Preparing to calculate log likelihoods
+[2024-03-01 02:37:20,300][__main__][INFO] - LINE|0
+[2024-03-01 02:38:35,186][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': 0.6373878121376038, 'll_raw': -4524.068359375, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 02:38:35,187][__main__][INFO] - Current average LL is 0.6373878121376038
+[2024-03-01 02:38:35,187][__main__][INFO] - LINE|0

@@ -1,0 +1,3 @@
+- +config_name=config
+- +config_path=/fastdata/speech-diff-dys/speech-diff/beta_10/UAS_all/.hydra/
+- +eval.checkpoint=/fastdata/speech-diff-dys/beta_10/UAS_all/checkpoint/grad_500.pt

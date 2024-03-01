@@ -2,8 +2,6 @@
 import numpy as np
 
 import torch
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
 from omegaconf import DictConfig, OmegaConf
 import hydra
@@ -57,6 +55,7 @@ def main(cfg: DictConfig):
     out_path = f'{cfg.eval.out_dir}/output.wav'
 
     write(out_path, 22050, audio)
+    save_plot(y_dec[0].cpu(), f'{cfg.eval.out_dir}/input_spec')
     save_plot(y_dec[0].cpu(), f'{cfg.eval.out_dir}/output_spec')
 
 

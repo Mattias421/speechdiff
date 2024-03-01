@@ -1,0 +1,44 @@
+data:
+  train_filelist_path: /fastdata/speech-diff-dys/manifests/UAS/B1.txt
+  dev_filelist_path: /fastdata/speech-diff-dys/manifests/UAS/B3.txt
+  test_filelist_path: /fastdata/speech-diff-dys/manifests/UAS/B2.txt
+  cmudict_path: /home/acr22wl/speech-diff/resources/cmu_dictionary
+  add_blank: true
+  n_spks: 15
+  n_feats: 80
+  n_fft: 1024
+  sample_rate: 16000
+  hop_length: 256
+  win_length: 1024
+  f_min: 0
+  f_max: 8000
+  name: UAS_all
+model:
+  spk_emb_dim: 128
+  encoder:
+    n_channels: 192
+    filter_channels: 768
+    filter_channels_dp: 256
+    n_layers: 6
+    kernel_size: 3
+    p_dropout: 0.1
+    n_heads: 2
+    window_size: 4
+  decoder:
+    dim: 64
+    beta_min: 0.05
+    beta_max: 10.0
+    pe_scale: 1000
+training:
+  tensorboard_dir: tb
+  checkpoint_dir: checkpoints
+  test_size: 1
+  n_epochs: 500
+  batch_size: 16
+  learning_rate: 0.0001
+  seed: 612
+  save_every: 1
+  gpu: 0
+  num_workers: 30
+eval:
+  checkpoint: /fastdata/speech-diff-dys/beta_10/UAS_all/checkpoint/grad_500.pt

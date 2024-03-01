@@ -1,0 +1,8 @@
+[2024-03-01 02:27:20,378][__main__][INFO] - Preparing to calculate log likelihoods
+[2024-03-01 02:27:21,137][__main__][INFO] - LINE|0
+[2024-03-01 02:28:42,505][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': tensor([0.6037]), 'll_raw': tensor([-4284.9805]), 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 02:28:42,507][__main__][INFO] - Current average LL is tensor([0.6037])
+[2024-03-01 02:28:42,508][__main__][INFO] - LINE|0
+[2024-03-01 02:30:09,361][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': tensor([0.7421]), 'll_raw': tensor([-5267.1289]), 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 02:30:09,364][__main__][INFO] - Current average LL is tensor([0.6729])
+[2024-03-01 02:30:09,364][__main__][INFO] - LINE|0

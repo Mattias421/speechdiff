@@ -181,7 +181,8 @@ class GradTTS(BaseModule):
         
 
         # Get speaker embedding
-        spk = self.spk_emb(spk)
+        if spk is not None:
+            spk = self.spk_emb(spk)
         
       
         # Get encoder_outputs `mu_x` and log-scaled token durations `logw`
@@ -225,5 +226,4 @@ class GradTTS(BaseModule):
                 return x_t
 
 
-
-        return ScoreModel(self.decoder.estimator), mu_y, spk, y_mask
+        return ScoreModel(self.decoder.estimator)
