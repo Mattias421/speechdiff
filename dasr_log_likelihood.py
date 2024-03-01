@@ -108,14 +108,14 @@ def ll_speech(text, spk, gtts, cmu,
     x = torch.LongTensor(intersperse(text_to_sequence(text, dictionary=cmu), len(symbols))).to(device)[None]
     x_lengths = torch.LongTensor([x.shape[-1]]).to(device)
     spk = torch.tensor(spk).to(device)
+    gtts = gtts.to(device)
 
     y_enc, y_dec, attn = gtts.forward(x, x_lengths, n_timesteps=50, spk=spk)
 
     mu = y_enc
     spec = y_dec
-    max_len = fix_len_compatibility(spec.shape[-1])
-    mask = sequence_mask(torch.LongTensor([[spec.size(-1)]]), 
-                         max_len).to(spec)
+    spec, mask, max_len = pad_audio(spec)
+    mu, _, _ = pad_audio(mu)
 
     model = ScoreModel(gtts.decoder.estimator, mu, mask)
     ll, _, _, _ = log_likelihood(model,
@@ -155,8 +155,9 @@ def main(cfg):
         spk = int(spk)
 
         logger.info(f'{text}|{spk}')
+        beta_max = float(cfg.model.decoder.beta_max)
         
-        ll, ll_raw, shape = ll_speech(text, spk, gtts, cmu, cfg.model.decoder.beta_max)
+        ll, ll_raw, shape = ll_speech(text, spk, gtts, cmu, 1.0, beta_max, device)
 
         result = {'text':text,
                   'spk':spk,

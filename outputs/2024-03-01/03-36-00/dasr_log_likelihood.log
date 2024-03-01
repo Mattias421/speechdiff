@@ -1,0 +1,38 @@
+[2024-03-01 03:36:00,232][__main__][INFO] - Preparing to calculate log likelihoods
+[2024-03-01 03:36:02,144][__main__][INFO] - LINE|0
+[2024-03-01 03:36:13,991][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': -0.1721968650817871, 'll_raw': 1222.2236328125, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:13,991][__main__][INFO] - Current average LL is -0.1721968650817871
+[2024-03-01 03:36:13,991][__main__][INFO] - LINE|0
+[2024-03-01 03:36:17,222][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': -0.20118792355060577, 'll_raw': 1427.9970703125, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:17,223][__main__][INFO] - Current average LL is -0.18669239431619644
+[2024-03-01 03:36:17,223][__main__][INFO] - LINE|0
+[2024-03-01 03:36:20,562][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': -0.1648113876581192, 'll_raw': 1169.802734375, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:20,562][__main__][INFO] - Current average LL is -0.17939872543017069
+[2024-03-01 03:36:20,562][__main__][INFO] - LINE|0
+[2024-03-01 03:36:23,980][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': -0.18897660076618195, 'll_raw': 1341.3232421875, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:23,981][__main__][INFO] - Current average LL is -0.1817931942641735
+[2024-03-01 03:36:23,981][__main__][INFO] - LINE|0
+[2024-03-01 03:36:27,213][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': -0.21835453808307648, 'll_raw': 1549.8427734375, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:27,214][__main__][INFO] - Current average LL is -0.1891054630279541
+[2024-03-01 03:36:27,214][__main__][INFO] - LINE|0
+[2024-03-01 03:36:30,748][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': -0.16654883325099945, 'll_raw': 1182.134765625, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:30,749][__main__][INFO] - Current average LL is -0.18534602473179498
+[2024-03-01 03:36:30,749][__main__][INFO] - LINE|0
+[2024-03-01 03:36:34,276][__main__][INFO] - {'text': 'LINE', 'spk': 0, 'll': -0.1825752705335617, 'll_raw': 1295.8876953125, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:34,277][__main__][INFO] - Current average LL is -0.18495020270347595
+[2024-03-01 03:36:34,277][__main__][INFO] - PARAGRAPH|0
+[2024-03-01 03:36:37,831][__main__][INFO] - {'text': 'PARAGRAPH', 'spk': 0, 'll': -0.22407029569149017, 'll_raw': 1590.412109375, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:37,831][__main__][INFO] - Current average LL is -0.18984021432697773
+[2024-03-01 03:36:37,831][__main__][INFO] - PARAGRAPH|0
+[2024-03-01 03:36:41,551][__main__][INFO] - {'text': 'PARAGRAPH', 'spk': 0, 'll': -0.2196662873029709, 'll_raw': 1559.1533203125, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:41,551][__main__][INFO] - Current average LL is -0.1931542224354214
+[2024-03-01 03:36:41,551][__main__][INFO] - PARAGRAPH|0
+[2024-03-01 03:36:45,191][__main__][INFO] - {'text': 'PARAGRAPH', 'spk': 0, 'll': -0.2143767923116684, 'll_raw': 1521.609375, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:45,191][__main__][INFO] - Current average LL is -0.1952764794230461
+[2024-03-01 03:36:45,192][__main__][INFO] - PARAGRAPH|0
+[2024-03-01 03:36:48,756][__main__][INFO] - {'text': 'PARAGRAPH', 'spk': 0, 'll': -0.204218789935112, 'll_raw': 1449.509765625, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:48,756][__main__][INFO] - Current average LL is -0.19608941674232483
+[2024-03-01 03:36:48,756][__main__][INFO] - PARAGRAPH|0
+[2024-03-01 03:36:52,178][__main__][INFO] - {'text': 'PARAGRAPH', 'spk': 0, 'll': -0.19754518568515778, 'll_raw': 1402.1416015625, 'shape': torch.Size([1, 80, 128])}
+[2024-03-01 03:36:52,178][__main__][INFO] - Current average LL is -0.19621073082089424
+[2024-03-01 03:36:52,178][__main__][INFO] - PARAGRAPH|0
